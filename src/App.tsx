@@ -8,12 +8,15 @@ import { InfoModal } from './components/InfoModal';
 import { ShareModal } from './components/ShareModal';
 import { CarProfileModal } from './components/CarProfileModal';
 import { RouteSearchModal } from './components/RouteSearchModal';
+import { Copy, Check } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import type {
   CalculationSettings,
   SavedCarProfile,
   TripData,
 } from './types/calculator';
 import { calculateSimpleSplit } from './utils/calculation';
+import { copyToClipboard, generateShareText } from './utils/share';
 import {
   DEFAULT_SETTINGS,
   DEFAULT_TRIP_DATA,
@@ -29,6 +32,8 @@ export const App: React.FC = () => {
 
   const [activeCarName, setActiveCarName] = useState<string>('');
   const [autoRouteLabel, setAutoRouteLabel] = useState<string>('');
+  const [payPayId, setPayPayId] = useState<string>('');
+  const [copied, setCopied] = useState<boolean>(false);
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -63,7 +68,6 @@ export const App: React.FC = () => {
     }));
   };
 
-  // ルート自動計算からの反映ハンドラー
   const handleApplyRoute = (distanceKm: number, highwayToll: number, label: string) => {
     setAutoRouteLabel(label);
     setTrip((prev) => ({
@@ -73,12 +77,27 @@ export const App: React.FC = () => {
     }));
   };
 
+  const handleCopy = async () => {
+    const text = generateShareText(trip, splitResult, payPayId);
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      confetti({
+        particleCount: 40,
+        spread: 50,
+        origin: { y: 0.9 },
+      });
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const handleReset = () => {
     if (window.confirm('入力内容を初期値にリセットしますか？')) {
       setTrip(DEFAULT_TRIP_DATA);
       setSettings(DEFAULT_SETTINGS);
       setActiveCarName('');
       setAutoRouteLabel('');
+      setPayPayId('');
     }
   };
 
@@ -98,73 +117,83 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans pb-16">
-      {/* ナビゲーションヘッダー */}
-      <Header
-        onOpenCarProfile={() => setIsCarModalOpen(true)}
-        onReset={handleReset}
-        onToggleHelp={() => setIsInfoOpen(true)}
-        carName={activeCarName}
-      />
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col justify-between">
+      <div className="w-full">
+        {/* ミニマルヘッダー */}
+        <Header
+          onOpenCarProfile={() => setIsCarModalOpen(true)}
+          onReset={handleReset}
+          onToggleHelp={() => setIsInfoOpen(true)}
+          carName={activeCarName}
+        />
 
-      {/* メインコンテナ */}
-      <main className="max-w-4xl mx-auto px-4 py-5 w-full flex-1 space-y-5">
-        {/* コンセプトバナー */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xs flex items-center justify-between gap-3">
+        {/* スマホ特化 メインコンテンツ（最大幅 420px） */}
+        <main className="max-w-md mx-auto px-3.5 py-3.5 space-y-3.5 pb-28">
+          {/* 1. 入力カード */}
+          <QuickInputCard
+            trip={trip}
+            onTripChange={handleTripChange}
+            onOpenRouteSearch={() => setIsRouteModalOpen(true)}
+            autoRouteLabel={autoRouteLabel}
+          />
+
+          {/* 2. 結果サマリーカード */}
+          <ResultSummaryCard trip={trip} result={splitResult} />
+
+          {/* 3. 送金案内・PayPayメモ */}
+          <SettlementSection
+            trip={trip}
+            result={splitResult}
+            onOpenShareModal={() => setIsShareOpen(true)}
+            payPayId={payPayId}
+            onPayPayIdChange={setPayPayId}
+            copied={copied}
+            onCopySuccess={handleCopy}
+          />
+
+          {/* 4. 詳細設定（折りたたみ） */}
+          <DetailedSettingsAccordion
+            trip={trip}
+            settings={settings}
+            onTripChange={handleTripChange}
+            onMaintenanceChange={handleMaintenanceChange}
+            onSettingsChange={setSettings}
+            onOpenHelp={() => setIsInfoOpen(true)}
+          />
+        </main>
+      </div>
+
+      {/* スマホ用 最下部固定バー（Sticky Bottom Bar） */}
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-lg">
+        <div className="max-w-md mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm sm:text-base font-black tracking-tight">
-              🚗 目的地から距離・高速代を自動算出できる車代割り勘
-            </h2>
-            <p className="text-[11px] text-blue-100 mt-0.5">
-              出発地・目的地（往復/片道）を入れるだけで自動入力！あとから自由に手動補正できます。
-            </p>
+            <div className="text-[10px] font-bold text-slate-400 leading-none">
+              同乗者 1人あたり
+            </div>
+            <div className="text-xl font-black text-slate-900 leading-tight mt-0.5">
+              ¥{splitResult.passengerShare.toLocaleString()}
+            </div>
           </div>
+
           <button
             type="button"
-            onClick={() => setIsInfoOpen(true)}
-            className="text-[11px] font-bold px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl shrink-0 transition-colors"
+            onClick={handleCopy}
+            className="flex-1 max-w-[220px] py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
           >
-            維持費の根拠
+            {copied ? (
+              <>
+                <Check className="w-4 h-4" />
+                <span>コピー完了！</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                <span>LINE用にコピー</span>
+              </>
+            )}
           </button>
         </div>
-
-        {/* 2カラム / 1カラム レスポンシブレイアウト */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* 左側: クイック入力カード ＋ 詳細設定アコーディオン */}
-          <div className="lg:col-span-7 space-y-4">
-            {/* 爆速クイック入力カード（メイン） */}
-            <QuickInputCard
-              trip={trip}
-              onTripChange={handleTripChange}
-              onOpenRouteSearch={() => setIsRouteModalOpen(true)}
-              autoRouteLabel={autoRouteLabel}
-            />
-
-            {/* 詳細設定アコーディオン */}
-            <DetailedSettingsAccordion
-              trip={trip}
-              settings={settings}
-              onTripChange={handleTripChange}
-              onMaintenanceChange={handleMaintenanceChange}
-              onSettingsChange={setSettings}
-              onOpenHelp={() => setIsInfoOpen(true)}
-            />
-          </div>
-
-          {/* 右側: 結果カード & 精算・送金ルート (Sticky) */}
-          <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-20">
-            {/* 結果サマリーカード */}
-            <ResultSummaryCard trip={trip} result={splitResult} />
-
-            {/* 精算・送金案内 ＋ LINE共有ボタン */}
-            <SettlementSection
-              trip={trip}
-              result={splitResult}
-              onOpenShareModal={() => setIsShareOpen(true)}
-            />
-          </div>
-        </div>
-      </main>
+      </div>
 
       {/* モーダル群 */}
       <RouteSearchModal
@@ -181,6 +210,7 @@ export const App: React.FC = () => {
         onClose={() => setIsShareOpen(false)}
         trip={trip}
         result={splitResult}
+        payPayId={payPayId}
       />
 
       <CarProfileModal
