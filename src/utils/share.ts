@@ -30,8 +30,8 @@ export function generateShareText(
     lines.push('・1. ガソリン代: ¥0');
   }
 
-  // 2. 交通費
-  lines.push(`・2. 交通費 (高速・ETC代): ¥${breakdown.transitTotal.toLocaleString()}`);
+  // 2. 高速代
+  lines.push(`・2. 高速代: ¥${breakdown.transitTotal.toLocaleString()}`);
 
   // 3. 駐車場等 (駐車・洗車代)
   if (breakdown.parkingEtcTotal > 0) {

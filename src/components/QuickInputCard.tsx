@@ -611,7 +611,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             </div>
           </section>
 
-          {/* 2. 交通費（高速代） */}
+          {/* 2. 高速代 */}
           <section className="pt-4 border-t border-slate-200/90 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -620,7 +620,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
                 </span>
                 <div className="flex items-center gap-1.5 text-sm font-black text-slate-900">
                   <Car className="w-4 h-4 text-blue-600" />
-                  <span>交通費（高速代・ETC）</span>
+                  <span>高速代</span>
                 </div>
               </div>
               <div className="text-right">
@@ -633,7 +633,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                <span>高速道路・ETC料金</span>
+                <span>高速料金（ETC標準）</span>
                 <span className="text-[10px] text-slate-400 font-normal">直接入力・補正OK</span>
               </label>
               <div className="relative">
@@ -660,7 +660,8 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
                 trip.distanceKm,
                 routeResult?.isRoundTrip ?? isRoundTrip,
                 currentCarType,
-                trip.highwayToll
+                trip.highwayToll,
+                routeResult
               );
               return (
                 <div className="pt-1">
@@ -670,7 +671,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 transition-colors"
                   >
                     <Info className="w-3.5 h-3.5" />
-                    <span>高速代の計算根拠・内訳を見る</span>
+                    <span>高速代の計算根拠・IC内訳を見る</span>
                     {isHighwayDetailOpen ? (
                       <ChevronUp className="w-3.5 h-3.5" />
                     ) : (
@@ -693,6 +694,38 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
                           )}
                         </span>
                       </div>
+
+                      {/* IC間実走行区間情報 */}
+                      {(tollInfo.entryICName || tollInfo.exitICName) && (
+                        <div className="p-2 bg-white/80 rounded-lg border border-blue-200/50 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-blue-950 flex items-center gap-1">
+                              🛣️ 利用IC区間
+                            </span>
+                            {tollInfo.highwayKm > 0 && (
+                              <span className="text-[11px] font-black text-blue-700">
+                                実走行 約{tollInfo.highwayKm} km
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-800 font-semibold flex items-center gap-1.5 flex-wrap">
+                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded font-bold text-[10px]">
+                              乗
+                            </span>
+                            <span>{tollInfo.entryICName || '最寄りIC'}</span>
+                            <span className="text-slate-400">➔</span>
+                            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold text-[10px]">
+                              降
+                            </span>
+                            <span>{tollInfo.exitICName || '最寄りIC'}</span>
+                          </div>
+                          {tollInfo.highwayRoadNames && tollInfo.highwayRoadNames.length > 0 && (
+                            <div className="text-[10px] text-slate-500 pt-0.5">
+                              経由: {tollInfo.highwayRoadNames.join('、')}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-start gap-2">

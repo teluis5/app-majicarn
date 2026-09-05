@@ -67,11 +67,11 @@ export const ResultSummaryCard: React.FC<ResultSummaryCardProps> = ({ trip, resu
             </span>
           </div>
 
-          {/* 2. 交通費（高速代） */}
+          {/* 2. 高速代 */}
           <div className="flex items-center justify-between text-slate-600">
             <span className="flex items-center gap-1.5 font-bold">
               <span className="w-2 h-2 rounded-full bg-blue-500" />
-              2. 交通費 (高速代・ETC)
+              2. 高速代
             </span>
             <span className="font-extrabold text-slate-900">
               ¥{breakdown.transitTotal.toLocaleString()}

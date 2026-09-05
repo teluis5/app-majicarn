@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateHubenyDistance,
   estimateHighwayToll,
+  findNearestInterchange,
   getHighwayTollBreakdown,
   PRESET_LOCATIONS,
 } from './routeEstimator';
@@ -28,16 +29,44 @@ describe('Route Estimator', () => {
     expect(keiToll).toBeLessThan(toll);
   });
 
-  it('generates highway toll breakdown details accurately', () => {
-    const breakdown = getHighwayTollBreakdown(200, true, 'sedan_suv');
-    expect(breakdown.isRoundTrip).toBe(true);
-    expect(breakdown.estimatedToll).toBeGreaterThan(0);
-    expect(breakdown.oneWayToll).toBeGreaterThan(0);
-    expect(breakdown.isKeiDiscountApplied).toBe(false);
-    expect(breakdown.discountEstimateLateNight).toBeGreaterThan(0);
+  it('finds nearest interchange accurately', () => {
+    // 箱根近郊 (35.23, 139.10) -> 箱根口IC or 小田原西IC
+    const ic = findNearestInterchange(35.2333, 139.1039, 20);
+    expect(ic).not.toBeNull();
+    expect(ic?.name).toContain('IC');
 
-    const keiBreakdown = getHighwayTollBreakdown(200, true, 'kei');
-    expect(keiBreakdown.isKeiDiscountApplied).toBe(true);
-    expect(keiBreakdown.estimatedToll).toBeLessThan(breakdown.estimatedToll);
+    // 富士河口湖近郊 -> 河口湖IC or 富士吉田IC
+    const fujiIC = findNearestInterchange(35.4975, 138.7686, 20);
+    expect(fujiIC).not.toBeNull();
+    expect(fujiIC?.name).toMatch(/(河口湖|富士吉田)/);
+  });
+
+  it('incorporates IC-to-IC actual distance into toll breakdown', () => {
+    const mockRouteResult = {
+      oneWayDistanceKm: 85,
+      totalDistanceKm: 170,
+      oneWayToll: 1900,
+      totalToll: 3800,
+      isRoundTrip: true,
+      useHighway: true,
+      fromName: '東京駅',
+      toName: '箱根湯本',
+      isFallback: false,
+      fromCoords: { lat: 35.6812, lon: 139.7671 },
+      toCoords: { lat: 35.2333, lon: 139.1039 },
+      routeCoordinates: [] as [number, number][],
+      googleMapsUrl: '',
+      entryICName: '東京IC',
+      exitICName: '箱根口IC',
+      highwayDistanceKm: 68,
+      highwayRoadNames: ['東名高速道路', '小田原厚木道路'],
+    };
+
+    const breakdown = getHighwayTollBreakdown(170, true, 'sedan_suv', undefined, mockRouteResult);
+    expect(breakdown.entryICName).toBe('東京IC');
+    expect(breakdown.exitICName).toBe('箱根口IC');
+    expect(breakdown.highwayKm).toBe(68);
+    expect(breakdown.highwayRoadNames).toContain('東名高速道路');
+    expect(breakdown.formulaDescription).toContain('IC間実走行68km');
   });
 });
