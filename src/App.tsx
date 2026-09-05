@@ -7,6 +7,7 @@ import { SettlementSection } from './components/SettlementSection';
 import { InfoModal } from './components/InfoModal';
 import { ShareModal } from './components/ShareModal';
 import { CarProfileModal } from './components/CarProfileModal';
+import { RouteSearchModal } from './components/RouteSearchModal';
 import type {
   CalculationSettings,
   SavedCarProfile,
@@ -27,9 +28,12 @@ export const App: React.FC = () => {
   const [settings, setSettings] = useState<CalculationSettings>(loadSettings);
 
   const [activeCarName, setActiveCarName] = useState<string>('');
+  const [autoRouteLabel, setAutoRouteLabel] = useState<string>('');
+
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCarModalOpen, setIsCarModalOpen] = useState(false);
+  const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
 
   // リアルタイム計算
   const splitResult = useMemo(() => {
@@ -59,11 +63,22 @@ export const App: React.FC = () => {
     }));
   };
 
+  // ルート自動計算からの反映ハンドラー
+  const handleApplyRoute = (distanceKm: number, highwayToll: number, label: string) => {
+    setAutoRouteLabel(label);
+    setTrip((prev) => ({
+      ...prev,
+      distanceKm,
+      highwayToll,
+    }));
+  };
+
   const handleReset = () => {
     if (window.confirm('入力内容を初期値にリセットしますか？')) {
       setTrip(DEFAULT_TRIP_DATA);
       setSettings(DEFAULT_SETTINGS);
       setActiveCarName('');
+      setAutoRouteLabel('');
     }
   };
 
@@ -98,10 +113,10 @@ export const App: React.FC = () => {
         <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xs flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm sm:text-base font-black tracking-tight">
-              🚗 運転手1人 ＋ 同乗者でサクッと車代割り勘
+              🚗 目的地から距離・高速代を自動算出できる車代割り勘
             </h2>
             <p className="text-[11px] text-blue-100 mt-0.5">
-              他の人の名前は不要！ 距離・高速代・同乗者の人数を入れるだけで即完了します。
+              出発地・目的地（往復/片道）を入れるだけで自動入力！あとから自由に手動補正できます。
             </p>
           </div>
           <button
@@ -121,9 +136,11 @@ export const App: React.FC = () => {
             <QuickInputCard
               trip={trip}
               onTripChange={handleTripChange}
+              onOpenRouteSearch={() => setIsRouteModalOpen(true)}
+              autoRouteLabel={autoRouteLabel}
             />
 
-            {/* 詳細設定アコーディオン（駐車場代・ガソリン微調整等） */}
+            {/* 詳細設定アコーディオン */}
             <DetailedSettingsAccordion
               trip={trip}
               settings={settings}
@@ -136,7 +153,7 @@ export const App: React.FC = () => {
 
           {/* 右側: 結果カード & 精算・送金ルート (Sticky) */}
           <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-20">
-            {/* 結果サマリーカード（同乗者1人あたりを特大表示） */}
+            {/* 結果サマリーカード */}
             <ResultSummaryCard trip={trip} result={splitResult} />
 
             {/* 精算・送金案内 ＋ LINE共有ボタン */}
@@ -150,6 +167,13 @@ export const App: React.FC = () => {
       </main>
 
       {/* モーダル群 */}
+      <RouteSearchModal
+        isOpen={isRouteModalOpen}
+        onClose={() => setIsRouteModalOpen(false)}
+        onApplyRoute={handleApplyRoute}
+        carType={trip.maintenance.carType}
+      />
+
       <InfoModal isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
 
       <ShareModal

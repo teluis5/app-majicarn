@@ -1,16 +1,20 @@
 ﻿import React from 'react';
-import { Navigation, Users, Car, Gift } from 'lucide-react';
+import { Navigation, Users, Car, Gift, MapPin, Sparkles } from 'lucide-react';
 import type { CarTypePreset, TripData } from '../types/calculator';
 import { CAR_TYPE_PRESETS } from '../utils/calculation';
 
 interface QuickInputCardProps {
   trip: TripData;
   onTripChange: (updated: Partial<TripData>) => void;
+  onOpenRouteSearch: () => void;
+  autoRouteLabel?: string;
 }
 
 export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   trip,
   onTripChange,
+  onOpenRouteSearch,
+  autoRouteLabel,
 }) => {
   const currentCarType = trip.maintenance.carType;
 
@@ -34,6 +38,47 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
 
   return (
     <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80 space-y-5">
+      {/* ルート自動検索アシストバナー */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50/80 border border-blue-200/80 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <MapPin className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xs font-black text-blue-950 flex items-center gap-1.5">
+              目的地から距離・高速代を自動算出
+              <span className="text-[10px] font-bold px-1.5 py-0.2 bg-blue-200/60 text-blue-800 rounded">
+                おすすめ
+              </span>
+            </div>
+            <div className="text-[10px] text-blue-800/80 mt-0.5">
+              出発地・目的地（箱根、熱海、富士山など）を入れるだけ！
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenRouteSearch}
+          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all shrink-0"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>ルートから自動入力</span>
+        </button>
+      </div>
+
+      {/* 自動入力された場合の通知バッジ */}
+      {autoRouteLabel && (
+        <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800">
+          <span className="font-bold flex items-center gap-1">
+            📍 {autoRouteLabel} の距離と高速代を反映中
+          </span>
+          <span className="text-[10px] text-emerald-600 font-medium">
+            (下の枠でいつでも自由に手動補正できます)
+          </span>
+        </div>
+      )}
+
       {/* 1. 車種選択 */}
       <div>
         <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
@@ -81,13 +126,16 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
         </div>
       </div>
 
-      {/* 2. 走行距離 & 高速代 */}
+      {/* 2. 走行距離 & 高速代（手動でいつでも自由に補正可能） */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 走行距離 */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <Navigation className="w-4 h-4 text-indigo-600" />
-            2. 走行距離
+          <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Navigation className="w-4 h-4 text-indigo-600" />
+              2. 走行距離
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">手動補正OK</span>
           </label>
           <div className="relative">
             <input
@@ -127,7 +175,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
             <span>3. 高速道路・ETC料金</span>
-            <span className="text-[10px] text-slate-400 font-normal">なければ空欄でOK</span>
+            <span className="text-[10px] text-slate-400 font-normal">手動補正OK</span>
           </label>
           <div className="relative">
             <input
@@ -146,12 +194,12 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             </span>
           </div>
           <p className="text-[10px] text-slate-400 mt-2">
-            ※ETCカード利用分や有料道路代
+            ※実際のETC明細等に合わせて微調整できます
           </p>
         </div>
       </div>
 
-      {/* 3. 同乗者の人数（名前入力不要！） */}
+      {/* 3. 同乗者の人数 */}
       <div>
         <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1.5">
