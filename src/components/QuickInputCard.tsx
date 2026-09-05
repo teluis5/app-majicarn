@@ -816,7 +816,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             </div>
           </section>
 
-          {/* 4. 諸経費（車両維持費）★強調 */}
+          {/* 4. 諸経費（車両維持費） */}
           <section className="pt-4 border-t border-slate-200/90 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -829,16 +829,14 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-indigo-500 font-bold block leading-none">
-                  車主への公平な手当
-                </span>
+                <span className="text-[10px] text-slate-400 font-bold block leading-none">小計</span>
                 <span className="text-base font-black text-indigo-700">
                   ¥{maintenanceCost.toLocaleString()}
                 </span>
               </div>
             </div>
 
-            <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-2.5 flex items-center justify-between text-xs text-indigo-950">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between text-xs text-slate-800">
               <div className="space-y-0.5">
                 <div className="font-bold flex items-center gap-1 text-indigo-900">
                   <span>タイヤ・オイル・車検等の消耗按分</span>
