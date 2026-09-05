@@ -13,9 +13,14 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
+  Info,
 } from 'lucide-react';
 import type { CarTypePreset, TripData } from '../types/calculator';
-import { CAR_TYPE_PRESETS, getMaintenanceRatePerKm } from '../utils/calculation';
+import {
+  CAR_TYPE_PRESETS,
+  getMaintenanceRatePerKm,
+  calculateMaintenanceBreakdownDetails,
+} from '../utils/calculation';
 import { estimateRoute, type RouteEstimateResult } from '../utils/routeEstimator';
 import { RouteMapView } from './RouteMapView';
 
@@ -44,6 +49,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [routeResult, setRouteResult] = useState<RouteEstimateResult | null>(null);
   const [isRouteSectionCollapsed, setIsRouteSectionCollapsed] = useState(false);
+  const [isMaintenanceDetailOpen, setIsMaintenanceDetailOpen] = useState(false);
 
   const currentCarType = trip.maintenance.carType;
   const ratePerKm = getMaintenanceRatePerKm(trip.maintenance);
@@ -67,6 +73,12 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   const maintenanceCost = trip.maintenance.enabled
     ? Math.round(ratePerKm * (trip.distanceKm || 0))
     : 0;
+
+  // 諸経費の詳細内訳
+  const maintenanceDetails = calculateMaintenanceBreakdownDetails(
+    currentCarType,
+    trip.distanceKm || 0
+  );
 
   const handleSelectCarType = (type: CarTypePreset) => {
     const preset = CAR_TYPE_PRESETS[type];
@@ -231,6 +243,44 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             );
           })}
         </div>
+
+        {/* 初回ステップ2用の内訳確認トグル */}
+        {!isDestinationSet && (
+          <div className="pt-0.5">
+            <button
+              type="button"
+              onClick={() => setIsMaintenanceDetailOpen((prev) => !prev)}
+              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+            >
+              <Info className="w-3 h-3" />
+              <span>
+                {CAR_TYPE_PRESETS[currentCarType]?.name || '選択中'}の維持費内訳（¥{ratePerKm}/km）を確認する
+              </span>
+              {isMaintenanceDetailOpen ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+            </button>
+
+            {isMaintenanceDetailOpen && (
+              <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs animate-in fade-in duration-200">
+                <div className="text-[10px] font-bold text-slate-500 pb-1 border-b border-slate-200/60 flex items-center justify-between">
+                  <span>{CAR_TYPE_PRESETS[currentCarType]?.name} の1kmあたり内訳</span>
+                  <span className="text-indigo-700 font-extrabold">合計 ¥{ratePerKm}/km</span>
+                </div>
+                <div className="space-y-1">
+                  {maintenanceDetails.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-700">{item.category} ({item.description})</span>
+                      <span className="font-bold text-indigo-700 shrink-0 ml-2">約¥{item.ratePerKm}/km</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -708,6 +758,79 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* 諸経費・維持費の詳細内訳トグルボタン */}
+            <button
+              type="button"
+              onClick={() => setIsMaintenanceDetailOpen((prev) => !prev)}
+              className="w-full py-2 px-3 bg-indigo-50/90 hover:bg-indigo-100/80 border border-indigo-200/90 rounded-xl text-xs font-bold text-indigo-900 flex items-center justify-between transition-all"
+            >
+              <span className="flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span>維持費の詳細な内訳（タイヤ・オイル・車検等）を見る</span>
+              </span>
+              <span className="text-[11px] font-extrabold flex items-center gap-0.5 text-indigo-600 shrink-0">
+                {isMaintenanceDetailOpen ? '内訳を閉じる' : '内訳を表示'}
+                {isMaintenanceDetailOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </span>
+            </button>
+
+            {/* トグル展開される詳細内訳カード */}
+            {isMaintenanceDetailOpen && (
+              <div className="bg-white rounded-2xl border border-indigo-200/90 p-3.5 space-y-3 shadow-xs animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="text-xs font-black text-slate-800">
+                    {CAR_TYPE_PRESETS[currentCarType]?.name || '普通車'} の維持費内訳
+                  </div>
+                  <div className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                    合計 ¥{ratePerKm}/km
+                  </div>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-xs">
+                  {maintenanceDetails.map((item, idx) => (
+                    <div key={idx} className="py-2 flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                          {item.category}
+                        </div>
+                        <div className="text-[10px] text-slate-400 pl-3">
+                          {item.description}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="font-extrabold text-slate-900">
+                          ¥{item.cost.toLocaleString()}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-semibold">
+                          (@¥{item.ratePerKm}/km)
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between text-xs font-black text-indigo-950">
+                  <span>走行 {trip.distanceKm}km 分の維持費合計</span>
+                  <span className="text-base text-indigo-700 font-black">
+                    ¥{maintenanceCost.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-xl text-[10px] text-slate-500 leading-relaxed space-y-1">
+                  <p className="font-bold text-slate-700">💡 なぜ車両維持費を割り勘にするの？</p>
+                  <p>
+                    車は走行距離に応じてタイヤが摩耗し、エンジンオイルが劣化し、車検整備費用が発生します。
+                    ガソリン代だけでなく、この走行消耗分（1kmあたり約{ratePerKm}円）を同乗者で均等に按分することで、車主（運転手）だけが損をしない公平な割り勘になります。
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       )}
