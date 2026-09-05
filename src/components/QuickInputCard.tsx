@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Navigation, Users, MapPin, Sparkles, Loader2, Wrench, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 import type { CarTypePreset, TripData } from '../types/calculator';
 import { CAR_TYPE_PRESETS, getMaintenanceRatePerKm } from '../utils/calculation';
-import { estimateRoute, POPULAR_ROUTES } from '../utils/routeEstimator';
+import { estimateRoute } from '../utils/routeEstimator';
 
 interface QuickInputCardProps {
   trip: TripData;
@@ -15,8 +15,8 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   onTripChange,
   onOpenHelp,
 }) => {
-  const [fromQuery, setFromQuery] = useState('東京駅');
-  const [toQuery, setToQuery] = useState('箱根湯本');
+  const [fromQuery, setFromQuery] = useState('');
+  const [toQuery, setToQuery] = useState('');
   const [isRoundTrip, setIsRoundTrip] = useState(true);
   const useHighway = true;
   const [isLoading, setIsLoading] = useState(false);
@@ -76,15 +76,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
     }
   };
 
-  const handleSelectPopularRoute = (r: { from: string; to: string }) => {
-    setFromQuery(r.from);
-    setToQuery(r.to);
-    setErrorMsg(null);
-    setCalculatedNotice(null);
-  };
-
   const quickPassengerCounts = [1, 2, 3, 4, 5];
-  const quickDistances = [50, 100, 150, 200, 300];
   const isDriverFree = trip.driverDiscount === 'free';
 
   return (
@@ -99,24 +91,6 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
           <span className="text-[10px] text-slate-400 font-medium">
             下枠で手動補正OK
           </span>
-        </div>
-
-        {/* 定番人気ルートチップ */}
-        <div className="flex flex-wrap gap-1.5">
-          {POPULAR_ROUTES.slice(0, 4).map((r, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleSelectPopularRoute(r)}
-              className={`text-[11px] px-2.5 py-0.5 rounded-lg border font-medium transition-colors ${
-                fromQuery === r.from && toQuery === r.to
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
         </div>
 
         {/* 出発地 & 目的地入力欄 */}
@@ -281,22 +255,6 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
               km
             </span>
-          </div>
-          <div className="flex gap-1 mt-1">
-            {quickDistances.map((km) => (
-              <button
-                key={km}
-                type="button"
-                onClick={() => onTripChange({ distanceKm: km })}
-                className={`flex-1 py-0.5 text-[10px] rounded font-bold border transition-all ${
-                  trip.distanceKm === km
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {km}
-              </button>
-            ))}
           </div>
         </div>
 
