@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Navigation, Users, MapPin, Sparkles, Loader2, Wrench, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 import type { CarTypePreset, TripData } from '../types/calculator';
 import { CAR_TYPE_PRESETS, getMaintenanceRatePerKm } from '../utils/calculation';
-import { estimateRoute } from '../utils/routeEstimator';
+import { estimateRoute, type RouteEstimateResult } from '../utils/routeEstimator';
+import { RouteMapView } from './RouteMapView';
 
 interface QuickInputCardProps {
   trip: TripData;
@@ -22,6 +23,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [calculatedNotice, setCalculatedNotice] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [routeResult, setRouteResult] = useState<RouteEstimateResult | null>(null);
 
   const currentCarType = trip.maintenance.carType;
   const ratePerKm = getMaintenanceRatePerKm(trip.maintenance);
@@ -65,6 +67,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
         highwayToll: result.totalToll,
       });
 
+      setRouteResult(result);
       setCalculatedNotice(
         `${result.fromName} ⇄ ${result.toName} (${isRoundTrip ? '往復' : '片道'}) の距離と高速代を反映しました`
       );
@@ -175,6 +178,20 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span className="truncate">{calculatedNotice}</span>
           </div>
+        )}
+
+        {/* 経路マップ */}
+        {routeResult && (
+          <RouteMapView
+            fromName={routeResult.fromName}
+            toName={routeResult.toName}
+            fromCoords={routeResult.fromCoords}
+            toCoords={routeResult.toCoords}
+            routeCoordinates={routeResult.routeCoordinates}
+            googleMapsUrl={routeResult.googleMapsUrl}
+            isRoundTrip={routeResult.isRoundTrip}
+            distanceKm={trip.distanceKm}
+          />
         )}
 
         {/* エラー表示 */}

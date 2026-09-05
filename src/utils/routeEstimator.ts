@@ -115,6 +115,10 @@ export interface RouteEstimateResult {
   fromName: string;
   toName: string;
   isFallback: boolean;
+  fromCoords: { lat: number; lon: number };
+  toCoords: { lat: number; lon: number };
+  routeCoordinates: [number, number][]; // [lat, lon][] for Leaflet
+  googleMapsUrl: string;
 }
 
 /**
@@ -163,15 +167,25 @@ export async function estimateRoute(
 
   let oneWayDistanceKm = 0;
   let isFallback = false;
+  let routeCoordinates: [number, number][] = [
+    [from.lat, from.lon],
+    [to.lat, to.lon],
+  ];
 
-  // OSRM ルーティングAPIによる道路実走行距離の取得
+  // OSRM ルーティングAPIによる道路実走行距離と経路ジオメトリの取得
   try {
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
     const res = await fetch(osrmUrl);
     if (!res.ok) throw new Error('Routing API failed');
     const data = await res.json();
     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
       oneWayDistanceKm = Math.round((data.routes[0].distance / 1000) * 10) / 10;
+      if (data.routes[0].geometry && Array.isArray(data.routes[0].geometry.coordinates)) {
+        // GeoJSON は [lon, lat] なので Leaflet / 緯度経度配列 [lat, lon] に変換
+        routeCoordinates = data.routes[0].geometry.coordinates.map(
+          (c: [number, number]) => [c[1], c[0]] as [number, number]
+        );
+      }
     } else {
       throw new Error('No route found');
     }
@@ -190,6 +204,10 @@ export async function estimateRoute(
   const oneWayToll = useHighway ? estimateHighwayToll(oneWayDistanceKm, carType) : 0;
   const totalToll = oneWayToll * multiplier;
 
+  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+    from.name
+  )}&destination=${encodeURIComponent(to.name)}&travelmode=driving`;
+
   return {
     oneWayDistanceKm,
     totalDistanceKm,
@@ -200,5 +218,9 @@ export async function estimateRoute(
     fromName: from.name,
     toName: to.name,
     isFallback,
+    fromCoords: { lat: from.lat, lon: from.lon },
+    toCoords: { lat: to.lat, lon: to.lon },
+    routeCoordinates,
+    googleMapsUrl,
   };
 }
