@@ -1,4 +1,4 @@
-﻿import type { SimpleSplitResult, TripData } from '../types/calculator';
+import type { SimpleSplitResult, TripData } from '../types/calculator';
 import { getMaintenanceRatePerKm } from './calculation';
 
 export function generateShareText(
@@ -17,34 +17,43 @@ export function generateShareText(
     '💰【費用内訳】',
   ];
 
+  // 1. ガソリン代
   if (breakdown.fuelCost > 0) {
     if (trip.fuelMode === 'calculate') {
-      lines.push(`・ガソリン代: ¥${breakdown.fuelCost.toLocaleString()} (@¥${trip.fuelPricePerLiter}/L, 燃費 ${trip.fuelEfficiency}km/L)`);
+      lines.push(
+        `・1. ガソリン代: ¥${breakdown.fuelCost.toLocaleString()} (${trip.fuelEfficiency}km/L, @¥${trip.fuelPricePerLiter}/L)`
+      );
     } else {
-      lines.push(`・ガソリン代: ¥${breakdown.fuelCost.toLocaleString()} (給油実費)`);
+      lines.push(`・1. ガソリン代: ¥${breakdown.fuelCost.toLocaleString()} (実費給油)`);
     }
+  } else {
+    lines.push('・1. ガソリン代: ¥0');
   }
 
-  if (breakdown.highwayToll > 0) {
-    lines.push(`・高速・ETC代: ¥${breakdown.highwayToll.toLocaleString()}`);
-  }
-  if (breakdown.parkingFee > 0) {
-    lines.push(`・駐車場代: ¥${breakdown.parkingFee.toLocaleString()}`);
-  }
-  if (breakdown.carWashFee > 0) {
-    lines.push(`・洗車代: ¥${breakdown.carWashFee.toLocaleString()}`);
+  // 2. 交通費
+  lines.push(`・2. 交通費 (高速・ETC代): ¥${breakdown.transitTotal.toLocaleString()}`);
+
+  // 3. 駐車場等
+  if (breakdown.parkingEtcTotal > 0) {
+    const details = [];
+    if (breakdown.parkingFee > 0) details.push(`駐車 ¥${breakdown.parkingFee.toLocaleString()}`);
+    if (breakdown.carWashFee > 0) details.push(`洗車 ¥${breakdown.carWashFee.toLocaleString()}`);
+    lines.push(
+      `・3. 駐車場等: ¥${breakdown.parkingEtcTotal.toLocaleString()}${
+        details.length > 0 ? ` (${details.join(', ')})` : ''
+      }`
+    );
+  } else {
+    lines.push('・3. 駐車場等: ¥0');
   }
 
-  for (const exp of trip.customExpenses || []) {
-    if (exp.amount > 0) {
-      lines.push(`・${exp.name}: ¥${exp.amount.toLocaleString()}`);
-    }
-  }
-
+  // 4. 諸経費 (車両維持費)
   if (breakdown.maintenanceTotal > 0) {
     const rate = getMaintenanceRatePerKm(trip.maintenance);
-    lines.push(`・車両維持費: ¥${breakdown.maintenanceTotal.toLocaleString()} (@¥${rate}/km)`);
-    lines.push(`  (※車検・保険・タイヤ等の走行消耗手当分)`);
+    lines.push(`・4. 諸経費 (車両維持費): ¥${breakdown.maintenanceTotal.toLocaleString()} (@¥${rate}/km)`);
+    lines.push(`  (※タイヤ摩耗・オイル・車検・保険等の客観的按分手当)`);
+  } else {
+    lines.push('・4. 諸経費 (車両維持費): ¥0');
   }
 
   lines.push('──────────────────');

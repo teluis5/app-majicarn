@@ -1,4 +1,4 @@
-﻿export type FuelCalculationMode = 'calculate' | 'actual';
+export type FuelCalculationMode = 'calculate' | 'actual';
 
 export type CarTypePreset = 'kei' | 'compact' | 'sedan_suv' | 'minivan' | 'luxury' | 'custom';
 
@@ -51,11 +51,13 @@ export interface CalculationSettings {
 export interface CostBreakdown {
   fuelCost: number;
   highwayToll: number;
+  transitTotal: number; // 交通費小計 (高速・ETCなど)
   parkingFee: number;
   carWashFee: number;
   customExpensesTotal: number;
-  expensesDirectTotal: number; // 諸経費合計
-  maintenanceTotal: number; // 車両維持費合計
+  parkingEtcTotal: number; // 駐車場等小計 (駐車場+洗車+スポット)
+  expensesDirectTotal: number; // 直接諸経費合計
+  maintenanceTotal: number; // 諸経費・車両維持費合計
   grandTotal: number; // 全体費用総額
   splitTargetTotal: number; // 割り勘対象総額
   roundingAdjustment: number; // 端数調整額

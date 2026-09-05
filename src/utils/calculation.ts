@@ -108,8 +108,9 @@ export function calculateCostBreakdown(trip: TripData): CostBreakdown {
     0
   );
 
-  const expensesDirectTotal =
-    highwayToll + parkingFee + carWashFee + customExpensesTotal;
+  const transitTotal = highwayToll;
+  const parkingEtcTotal = parkingFee + carWashFee + customExpensesTotal;
+  const expensesDirectTotal = transitTotal + parkingEtcTotal;
 
   // 維持費
   const ratePerKm = getMaintenanceRatePerKm(trip.maintenance);
@@ -127,9 +128,11 @@ export function calculateCostBreakdown(trip: TripData): CostBreakdown {
   return {
     fuelCost,
     highwayToll,
+    transitTotal,
     parkingFee,
     carWashFee,
     customExpensesTotal,
+    parkingEtcTotal,
     expensesDirectTotal,
     maintenanceTotal: maintenanceFull,
     grandTotal,
