@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { QuickInputCard } from './components/QuickInputCard';
 import { DetailedSettingsAccordion } from './components/DetailedSettingsAccordion';
@@ -7,7 +7,6 @@ import { SettlementSection } from './components/SettlementSection';
 import { InfoModal } from './components/InfoModal';
 import { ShareModal } from './components/ShareModal';
 import { CarProfileModal } from './components/CarProfileModal';
-import { RouteSearchModal } from './components/RouteSearchModal';
 import { Copy, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type {
@@ -31,14 +30,12 @@ export const App: React.FC = () => {
   const [settings, setSettings] = useState<CalculationSettings>(loadSettings);
 
   const [activeCarName, setActiveCarName] = useState<string>('');
-  const [autoRouteLabel, setAutoRouteLabel] = useState<string>('');
   const [payPayId, setPayPayId] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCarModalOpen, setIsCarModalOpen] = useState(false);
-  const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
 
   // リアルタイム計算
   const splitResult = useMemo(() => {
@@ -68,15 +65,6 @@ export const App: React.FC = () => {
     }));
   };
 
-  const handleApplyRoute = (distanceKm: number, highwayToll: number, label: string) => {
-    setAutoRouteLabel(label);
-    setTrip((prev) => ({
-      ...prev,
-      distanceKm,
-      highwayToll,
-    }));
-  };
-
   const handleCopy = async () => {
     const text = generateShareText(trip, splitResult, payPayId);
     const ok = await copyToClipboard(text);
@@ -96,7 +84,6 @@ export const App: React.FC = () => {
       setTrip(DEFAULT_TRIP_DATA);
       setSettings(DEFAULT_SETTINGS);
       setActiveCarName('');
-      setAutoRouteLabel('');
       setPayPayId('');
     }
   };
@@ -133,9 +120,7 @@ export const App: React.FC = () => {
           <QuickInputCard
             trip={trip}
             onTripChange={handleTripChange}
-            onOpenRouteSearch={() => setIsRouteModalOpen(true)}
             onOpenHelp={() => setIsInfoOpen(true)}
-            autoRouteLabel={autoRouteLabel}
           />
 
           {/* 2. 結果サマリー（諸経費・維持費を自然に強調） */}
@@ -197,13 +182,6 @@ export const App: React.FC = () => {
       </div>
 
       {/* モーダル群 */}
-      <RouteSearchModal
-        isOpen={isRouteModalOpen}
-        onClose={() => setIsRouteModalOpen(false)}
-        onApplyRoute={handleApplyRoute}
-        carType={trip.maintenance.carType}
-      />
-
       <InfoModal isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
 
       <ShareModal

@@ -1,23 +1,28 @@
-﻿import React from 'react';
-import { Navigation, Users, Search, Wrench, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Navigation, Users, MapPin, Sparkles, Loader2, Wrench, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 import type { CarTypePreset, TripData } from '../types/calculator';
 import { CAR_TYPE_PRESETS, getMaintenanceRatePerKm } from '../utils/calculation';
+import { estimateRoute, POPULAR_ROUTES } from '../utils/routeEstimator';
 
 interface QuickInputCardProps {
   trip: TripData;
   onTripChange: (updated: Partial<TripData>) => void;
-  onOpenRouteSearch: () => void;
   onOpenHelp: () => void;
-  autoRouteLabel?: string;
 }
 
 export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   trip,
   onTripChange,
-  onOpenRouteSearch,
   onOpenHelp,
-  autoRouteLabel,
 }) => {
+  const [fromQuery, setFromQuery] = useState('東京駅');
+  const [toQuery, setToQuery] = useState('箱根湯本');
+  const [isRoundTrip, setIsRoundTrip] = useState(true);
+  const useHighway = true;
+  const [isLoading, setIsLoading] = useState(false);
+  const [calculatedNotice, setCalculatedNotice] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const currentCarType = trip.maintenance.carType;
   const ratePerKm = getMaintenanceRatePerKm(trip.maintenance);
   const maintenanceCost = Math.round(ratePerKm * (trip.distanceKm || 0));
@@ -35,34 +40,177 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
     });
   };
 
+  const handleCalculateRoute = async () => {
+    if (!fromQuery.trim() || !toQuery.trim()) {
+      setErrorMsg('出発地と目的地を入力してください');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg(null);
+    setCalculatedNotice(null);
+
+    try {
+      const result = await estimateRoute(
+        fromQuery.trim(),
+        toQuery.trim(),
+        isRoundTrip,
+        useHighway,
+        currentCarType
+      );
+
+      // 距離と高速代を入力フォームへ即座に反映！
+      onTripChange({
+        distanceKm: result.totalDistanceKm,
+        highwayToll: result.totalToll,
+      });
+
+      setCalculatedNotice(
+        `${result.fromName} ⇄ ${result.toName} (${isRoundTrip ? '往復' : '片道'}) の距離と高速代を反映しました`
+      );
+    } catch (e: unknown) {
+      const err = e as Error;
+      setErrorMsg(err.message || 'ルートの取得に失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectPopularRoute = (r: { from: string; to: string }) => {
+    setFromQuery(r.from);
+    setToQuery(r.to);
+    setErrorMsg(null);
+    setCalculatedNotice(null);
+  };
+
   const quickPassengerCounts = [1, 2, 3, 4, 5];
+  const quickDistances = [50, 100, 150, 200, 300];
   const isDriverFree = trip.driverDiscount === 'free';
 
   return (
     <div className="space-y-4">
-      {/* ルート自動入力ボタン */}
-      <button
-        type="button"
-        onClick={onOpenRouteSearch}
-        className="w-full py-2.5 px-3.5 bg-slate-100/80 hover:bg-blue-50/60 active:scale-[0.99] rounded-xl flex items-center justify-between text-left transition-all group border border-transparent hover:border-blue-200"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
-            <Search className="w-3.5 h-3.5" />
+      {/* 📍 出発地・目的地からの自動ルート算出エリア（Home画面に常時配置） */}
+      <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
+            <MapPin className="w-3.5 h-3.5 text-blue-600" />
+            <span>目的地から距離・高速代を自動算出</span>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs font-black text-slate-800 truncate group-hover:text-blue-700">
-              {autoRouteLabel || '目的地から距離・高速代を自動入力'}
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              {autoRouteLabel ? 'タップして変更（下の枠で直接補正も可能）' : '箱根、熱海、富士山などの地名を入れるだけ'}
-            </div>
+          <span className="text-[10px] text-slate-400 font-medium">
+            下枠で手動補正OK
+          </span>
+        </div>
+
+        {/* 定番人気ルートチップ */}
+        <div className="flex flex-wrap gap-1.5">
+          {POPULAR_ROUTES.slice(0, 4).map((r, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleSelectPopularRoute(r)}
+              className={`text-[11px] px-2.5 py-0.5 rounded-lg border font-medium transition-colors ${
+                fromQuery === r.from && toQuery === r.to
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 出発地 & 目的地入力欄 */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+              出発地
+            </label>
+            <input
+              type="text"
+              value={fromQuery}
+              onChange={(e) => setFromQuery(e.target.value)}
+              placeholder="例: 東京駅"
+              className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+              目的地 / 到着地
+            </label>
+            <input
+              type="text"
+              value={toQuery}
+              onChange={(e) => setToQuery(e.target.value)}
+              placeholder="例: 箱根湯本"
+              className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+            />
           </div>
         </div>
-        <span className="text-[11px] font-bold text-blue-600 shrink-0 ml-2">
-          検索
-        </span>
-      </button>
+
+        {/* 往復/片道 & 自動計算ボタン */}
+        <div className="flex items-center gap-2">
+          <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsRoundTrip(true)}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                isRoundTrip
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              往復 (×2)
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsRoundTrip(false)}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                !isRoundTrip
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              片道
+            </button>
+          </div>
+
+          <button
+            type="button"
+            disabled={isLoading || !fromQuery.trim() || !toQuery.trim()}
+            onClick={handleCalculateRoute}
+            className="flex-1 py-1.5 px-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 active:scale-[0.98] text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1 shadow-xs transition-all"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>計算中...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>距離と高速代を反映</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* 通知バッジ */}
+        {calculatedNotice && (
+          <div className="p-2 bg-emerald-100/70 border border-emerald-200 rounded-xl flex items-center gap-1.5 text-[11px] text-emerald-900 font-bold">
+            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="truncate">{calculatedNotice}</span>
+          </div>
+        )}
+
+        {/* エラー表示 */}
+        {errorMsg && (
+          <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-1.5 text-[11px] text-rose-700">
+            <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+      </div>
 
       {/* 1. 車種セグメントコントロール */}
       <div>
@@ -107,13 +255,16 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
         </div>
       </div>
 
-      {/* 2. 走行距離 & 高速代 */}
+      {/* 2. 走行距離 & 高速代（手動でいつでも自由に補正可能） */}
       <div className="grid grid-cols-2 gap-3">
         {/* 走行距離 */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-            <Navigation className="w-3 h-3 text-slate-400" />
-            走行距離
+          <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <Navigation className="w-3 h-3 text-slate-400" />
+              走行距離
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">補正OK</span>
           </label>
           <div className="relative">
             <input
@@ -131,12 +282,29 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
               km
             </span>
           </div>
+          <div className="flex gap-1 mt-1">
+            {quickDistances.map((km) => (
+              <button
+                key={km}
+                type="button"
+                onClick={() => onTripChange({ distanceKm: km })}
+                className={`flex-1 py-0.5 text-[10px] rounded font-bold border transition-all ${
+                  trip.distanceKm === km
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {km}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 高速代 */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">
-            高速・ETC代
+          <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span>高速・ETC代</span>
+            <span className="text-[10px] text-slate-400 font-normal">補正OK</span>
           </label>
           <div className="relative">
             <input
@@ -154,6 +322,9 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
               円
             </span>
           </div>
+          <p className="text-[10px] text-slate-400 mt-1">
+            ※ETC明細に合わせて微調整可能
+          </p>
         </div>
       </div>
 
@@ -171,7 +342,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
               </span>
             </div>
             <div className="text-[10px] text-indigo-800/80">
-              車検・保険・タイヤ・オイル等の消耗按分: ¥{ratePerKm}/km
+              車検・保険・タイヤ等の消耗按分: ¥{ratePerKm}/km
             </div>
           </div>
         </div>
