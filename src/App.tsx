@@ -117,7 +117,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col justify-between">
+    <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col justify-between">
       <div className="w-full">
         {/* ミニマルヘッダー */}
         <Header
@@ -127,17 +127,18 @@ export const App: React.FC = () => {
           carName={activeCarName}
         />
 
-        {/* スマホ特化 メインコンテンツ（最大幅 420px） */}
-        <main className="max-w-md mx-auto px-3.5 py-3.5 space-y-3.5 pb-28">
-          {/* 1. 入力カード */}
+        {/* 1枚のシームレスなフラットキャンバス（バブル全廃・幅420pxに最適化） */}
+        <main className="max-w-md mx-auto px-4 py-4 space-y-5 pb-28">
+          {/* 1. 入力セクション */}
           <QuickInputCard
             trip={trip}
             onTripChange={handleTripChange}
             onOpenRouteSearch={() => setIsRouteModalOpen(true)}
+            onOpenHelp={() => setIsInfoOpen(true)}
             autoRouteLabel={autoRouteLabel}
           />
 
-          {/* 2. 結果サマリーカード */}
+          {/* 2. 結果サマリー（諸経費・維持費を自然に強調） */}
           <ResultSummaryCard trip={trip} result={splitResult} />
 
           {/* 3. 送金案内・PayPayメモ */}
