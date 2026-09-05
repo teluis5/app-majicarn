@@ -13,42 +13,48 @@ import type {
 // 車種別1kmあたりの維持費レート（車検・自賠責・任意保険・自動車税・オイル/タイヤ/ブレーキ等の消耗品目安）
 export const CAR_TYPE_PRESETS: Record<
   CarTypePreset,
-  { name: string; ratePerKm: number; description: string; typicalExamples: string }
+  { name: string; ratePerKm: number; defaultFuelEfficiency: number; description: string; typicalExamples: string }
 > = {
   kei: {
     name: '軽自動車',
     ratePerKm: 10,
-    description: '維持費が比較的安価な軽乗用車（N-BOX, タント, ハスラー等）',
-    typicalExamples: '車検・保険・タイヤ・オイル等の消耗按分: 約10円/km',
+    defaultFuelEfficiency: 18.0,
+    description: '維持費が比較的安価な軽乗用車（N-BOX, ハスラー等）',
+    typicalExamples: '車検・保険・タイヤ等の消耗按分: 約10円/km, 燃費目安 18km/L',
   },
   compact: {
     name: 'コンパクトカー',
     ratePerKm: 14,
+    defaultFuelEfficiency: 16.0,
     description: '排気量1000〜1500ccクラス（ヤリス, フィット, ノート等）',
-    typicalExamples: 'タイヤ・車検・定期点検等: 約14円/km',
+    typicalExamples: 'タイヤ・車検等: 約14円/km, 燃費目安 16km/L',
   },
   sedan_suv: {
-    name: '普通車 / ミドルSUV',
+    name: '普通車 / SUV',
     ratePerKm: 18,
-    description: '排気量1800〜2500cc（プリウス, CX-5, ヴェゼル, カローラ等）',
-    typicalExamples: '消耗品・タイヤ交換・諸税保険: 約18円/km',
+    defaultFuelEfficiency: 13.0,
+    description: '排気量1800〜2500cc（カローラ, ヴェゼル, CX-5等）',
+    typicalExamples: '消耗品・諸税保険: 約18円/km, 燃費目安 13km/L',
   },
   minivan: {
     name: 'ミニバン / 大型SUV',
     ratePerKm: 22,
-    description: 'ファミリー向け大型ミニバン（ヴォクシー, セレナ, アルファード, ランドクルーザー等）',
-    typicalExamples: '重量税・大径タイヤ・ブレーキ消耗・オイル容量大: 約22円/km',
+    defaultFuelEfficiency: 10.0,
+    description: 'ファミリー向け大型ミニバン（セレナ, ヴォクシー, アルファード等）',
+    typicalExamples: '重量税・大径タイヤ・オイル消耗: 約22円/km, 燃費目安 10km/L',
   },
   luxury: {
-    name: '輸入車 / 高級スポーツ',
+    name: '輸入車 / 高級車',
     ratePerKm: 28,
+    defaultFuelEfficiency: 9.0,
     description: '欧州車・プレミアムブランド（BMW, ベンツ, レクサス等）',
-    typicalExamples: '指定オイル・高価なタイヤ・部品代・定期点検費用: 約28円/km',
+    typicalExamples: '指定オイル・高価なタイヤ: 約28円/km, 燃費目安 9km/L',
   },
   custom: {
     name: 'カスタム設定',
     ratePerKm: 15,
-    description: 'ご自身の車両に合わせた任意のkm単価',
+    defaultFuelEfficiency: 15.0,
+    description: 'ご自身の車両に合わせた任意の単価',
     typicalExamples: '自由設定',
   },
 };

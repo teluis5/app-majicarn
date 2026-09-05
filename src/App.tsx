@@ -1,10 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
-import { TripInputSection } from './components/TripInputSection';
-import { ExpensesSection } from './components/ExpensesSection';
-import { MaintenanceSection } from './components/MaintenanceSection';
-import { MembersSection } from './components/MembersSection';
-import { SettingsBar } from './components/SettingsBar';
+import { QuickInputCard } from './components/QuickInputCard';
+import { DetailedSettingsAccordion } from './components/DetailedSettingsAccordion';
 import { ResultSummaryCard } from './components/ResultSummaryCard';
 import { SettlementSection } from './components/SettlementSection';
 import { InfoModal } from './components/InfoModal';
@@ -39,6 +36,12 @@ export const App: React.FC = () => {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCarModalOpen, setIsCarModalOpen] = useState(false);
 
+  // 運転手が無料かどうか
+  const isDriverFree = useMemo(() => {
+    const driver = members.find((m) => m.isDriver || m.isOwner);
+    return driver?.discountType === 'free';
+  }, [members]);
+
   // リアルタイム計算
   const splitResult = useMemo(() => {
     return calculateSplit(trip, members, settings);
@@ -69,6 +72,48 @@ export const App: React.FC = () => {
         ...updated,
       },
     }));
+  };
+
+  // 人数クイック変更
+  const handleMembersCountChange = (targetCount: number) => {
+    const currentCount = members.length;
+    if (targetCount === currentCount) return;
+
+    if (targetCount > currentCount) {
+      const added: Member[] = [];
+      for (let i = currentCount; i < targetCount; i++) {
+        added.push({
+          id: 'm_' + (Date.now() + i),
+          name: `メンバー${String.fromCharCode(65 + i)}`,
+          isOwner: false,
+          isDriver: false,
+          discountType: 'none',
+          discountValue: 0,
+          extraAdvancePaid: 0,
+        });
+      }
+      setMembers([...members, ...added]);
+    } else {
+      // 減らす場合（オーナーは必ず残す）
+      const owner = members.find((m) => m.isOwner) || members[0];
+      const others = members.filter((m) => m.id !== owner.id).slice(0, targetCount - 1);
+      setMembers([owner, ...others]);
+    }
+  };
+
+  // 運転手無料クイックトグル
+  const handleToggleDriverFree = (isFree: boolean) => {
+    const next = members.map((m) => {
+      if (m.isDriver || m.isOwner) {
+        return {
+          ...m,
+          discountType: isFree ? ('free' as const) : ('none' as const),
+          discountValue: isFree ? 100 : 0,
+        };
+      }
+      return m;
+    });
+    setMembers(next);
   };
 
   const handleReset = () => {
@@ -106,50 +151,59 @@ export const App: React.FC = () => {
       />
 
       {/* メインコンテナ */}
-      <main className="max-w-4xl mx-auto px-4 py-6 w-full flex-1">
-        {/* コンセプトバナー */}
-        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md relative overflow-hidden">
-          <div className="relative z-10 max-w-xl">
-            <h2 className="text-base sm:text-lg font-black tracking-tight">
-              ガソリン代だけでなく「車の維持費」も割り勘！
+      <main className="max-w-4xl mx-auto px-4 py-6 w-full flex-1 space-y-6">
+        {/* コンセプトバナー（控えめサイズ） */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xs flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm sm:text-base font-black tracking-tight">
+              🚗 諸経費・維持費も公平に入る車代割り勘
             </h2>
-            <p className="text-xs text-blue-100 mt-1 leading-relaxed">
-              車を出した人の消耗・維持負担を公平に評価し、ドライバー優遇や立替相殺までスムーズに解決します。
+            <p className="text-[11px] text-blue-100 mt-0.5">
+              走行距離・高速代・人数を入れるだけで即座に精算できます。
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsInfoOpen(true)}
+            className="text-[11px] font-bold px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl shrink-0 transition-colors"
+          >
+            維持費の考え方
+          </button>
         </div>
 
         {/* 2カラム / 1カラム レスポンシブレイアウト */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* 左側カラム: 各種入力セクション */}
+          {/* 左側: クイック入力カード ＋ 詳細設定アコーディオン */}
           <div className="lg:col-span-7 space-y-5">
-            {/* Step 1: 走行距離 & ガソリン代 */}
-            <TripInputSection trip={trip} onChange={handleTripChange} />
-
-            {/* Step 2: 高速代・駐車場代等 */}
-            <ExpensesSection trip={trip} members={members} onChange={handleTripChange} />
-
-            {/* Step 3: 車両維持費 (ランニングコスト) */}
-            <MaintenanceSection
-              distanceKm={trip.distanceKm}
-              maintenance={trip.maintenance}
-              onChange={handleMaintenanceChange}
-              onOpenHelp={() => setIsInfoOpen(true)}
+            {/* 爆速クイック入力カード（メイン） */}
+            <QuickInputCard
+              trip={trip}
+              members={members}
+              onTripChange={handleTripChange}
+              onMembersCountChange={handleMembersCountChange}
+              onToggleDriverFree={handleToggleDriverFree}
+              isDriverFree={isDriverFree}
             />
 
-            {/* Step 4: メンバーとドライバー優遇 */}
-            <MembersSection members={members} onChange={setMembers} />
+            {/* 詳細設定・個別調整アコーディオン（普段は折りたたみ） */}
+            <DetailedSettingsAccordion
+              trip={trip}
+              members={members}
+              settings={settings}
+              onTripChange={handleTripChange}
+              onMaintenanceChange={handleMaintenanceChange}
+              onMembersChange={setMembers}
+              onSettingsChange={setSettings}
+              onOpenHelp={() => setIsInfoOpen(true)}
+            />
           </div>
 
-          {/* 右側カラム: 結果カード & 精算・送金案内 (Sticky) */}
+          {/* 右側: 結果カード & 精算・送金ルート (Sticky) */}
           <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
             {/* 結果サマリーカード */}
             <ResultSummaryCard trip={trip} result={splitResult} />
 
-            {/* 端数丸め設定バー */}
-            <SettingsBar settings={settings} onChange={setSettings} />
-
-            {/* 精算・送金ルート */}
+            {/* 精算・送金ルート ＋ LINE共有ボタン */}
             <SettlementSection
               trip={trip}
               result={splitResult}
