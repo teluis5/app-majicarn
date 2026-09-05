@@ -27,9 +27,12 @@ import {
   type RouteEstimateResult,
 } from '../utils/routeEstimator';
 import { RouteMapView } from './RouteMapView';
+import { ResultSummaryCard } from './ResultSummaryCard';
+import type { SimpleSplitResult } from '../types/calculator';
 
 interface QuickInputCardProps {
   trip: TripData;
+  splitResult?: SimpleSplitResult;
   onTripChange: (updated: Partial<TripData>) => void;
   onOpenHelp: () => void;
   isDestinationSet: boolean;
@@ -39,6 +42,7 @@ interface QuickInputCardProps {
 
 export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   trip,
+  splitResult,
   onTripChange,
   onOpenHelp,
   isDestinationSet,
@@ -451,10 +455,17 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             distanceKm={trip.distanceKm}
           />
         )}
+
+        {/* 目的地決定直後にまずドカンと表示する「1人あたりの支払額と費用総額」 */}
+        {isDestinationSet && splitResult && (
+          <div className="pt-2">
+            <ResultSummaryCard trip={trip} result={splitResult} />
+          </div>
+        )}
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          目的地決定後に表示される4大詳細セクション
+          目的地決定後に表示される4大詳細セクション（後から内訳を見る）
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {isDestinationSet && (
         <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-top-3 duration-300">

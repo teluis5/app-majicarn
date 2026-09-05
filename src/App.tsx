@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { QuickInputCard } from './components/QuickInputCard';
 import { DetailedSettingsAccordion } from './components/DetailedSettingsAccordion';
-import { ResultSummaryCard } from './components/ResultSummaryCard';
 import { SettlementSection } from './components/SettlementSection';
 import { InfoModal } from './components/InfoModal';
 import { ShareModal } from './components/ShareModal';
@@ -118,9 +117,10 @@ export const App: React.FC = () => {
 
         {/* 1枚のシームレスなフラットキャンバス（バブル全廃・幅420pxに最適化） */}
         <main className="max-w-md mx-auto px-4 py-4 space-y-5 pb-28">
-          {/* 1. 入力セクション（人数・車種・目的地 ➔ 決定後に4大セクション展開） */}
+          {/* 1. 入力セクション（人数・車種・目的地 ➔ 決定後に即座に支払額＆総額表示 ➔ 下に4大セクション展開） */}
           <QuickInputCard
             trip={trip}
+            splitResult={splitResult}
             onTripChange={handleTripChange}
             onOpenHelp={() => setIsInfoOpen(true)}
             isDestinationSet={isDestinationSet}
@@ -128,13 +128,10 @@ export const App: React.FC = () => {
             onResetDestination={() => setIsDestinationSet(false)}
           />
 
-          {/* 目的地決定後にのみ表示される結果・送金・詳細設定 */}
+          {/* 目的地決定後にのみ表示される送金・詳細設定 */}
           {isDestinationSet && (
             <div className="space-y-5 animate-in fade-in duration-300">
-              {/* 2. 結果サマリー（諸経費・維持費を自然に強調） */}
-              <ResultSummaryCard trip={trip} result={splitResult} />
-
-              {/* 3. 送金案内・PayPayメモ */}
+              {/* 2. 送金案内・PayPayメモ */}
               <SettlementSection
                 trip={trip}
                 result={splitResult}
