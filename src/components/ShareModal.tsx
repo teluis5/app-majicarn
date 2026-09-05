@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { X, Copy, Check, MessageSquare, ExternalLink } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import type { SplitResult, TripData } from '../types/calculator';
+import type { SimpleSplitResult, TripData } from '../types/calculator';
 import { copyToClipboard, generateShareText } from '../utils/share';
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   trip: TripData;
-  result: SplitResult;
+  result: SimpleSplitResult;
   payPayId?: string;
 }
 
@@ -39,14 +39,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   const handleOpenLine = () => {
-    // LINE URLスキーム（Web版 / モバイル版）
     const url = `https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`;
     window.open(url, '_blank');
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
         {/* ヘッダー */}
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -76,7 +75,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             readOnly
             value={shareText}
             rows={14}
-            className="w-full p-3 font-mono text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:bg-white"
+            className="w-full p-3.5 font-mono text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-2xl resize-none focus:outline-none focus:bg-white leading-relaxed"
           />
         </div>
 

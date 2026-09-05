@@ -3,14 +3,11 @@ import type {
   CalculationSettings,
   CostBreakdown,
   MaintenanceSettings,
-  Member,
-  MemberSettlement,
-  PaymentTransfer,
-  SplitResult,
+  SimpleSplitResult,
   TripData,
 } from '../types/calculator';
 
-// 車種別1kmあたりの維持費レート（車検・自賠責・任意保険・自動車税・オイル/タイヤ/ブレーキ等の消耗品目安）
+// 車種別1kmあたりの維持費レート
 export const CAR_TYPE_PRESETS: Record<
   CarTypePreset,
   { name: string; ratePerKm: number; defaultFuelEfficiency: number; description: string; typicalExamples: string }
@@ -105,7 +102,6 @@ export function calculateCostBreakdown(trip: TripData): CostBreakdown {
   const highwayToll = Math.max(0, trip.highwayToll || 0);
   const parkingFee = Math.max(0, trip.parkingFee || 0);
   const carWashFee = Math.max(0, trip.carWashFee || 0);
-  const rentalFee = Math.max(0, trip.rentalFee || 0);
 
   const customExpensesTotal = (trip.customExpenses || []).reduce(
     (sum, item) => sum + Math.max(0, item.amount || 0),
@@ -113,7 +109,7 @@ export function calculateCostBreakdown(trip: TripData): CostBreakdown {
   );
 
   const expensesDirectTotal =
-    highwayToll + parkingFee + carWashFee + rentalFee + customExpensesTotal;
+    highwayToll + parkingFee + carWashFee + customExpensesTotal;
 
   // 維持費
   const ratePerKm = getMaintenanceRatePerKm(trip.maintenance);
@@ -124,14 +120,15 @@ export function calculateCostBreakdown(trip: TripData): CostBreakdown {
   const maintenanceTarget = Math.round(maintenanceFull * shareRatio);
 
   const grandTotal = fuelCost + expensesDirectTotal + maintenanceFull;
-  const splitTargetTotal = fuelCost + expensesDirectTotal + maintenanceTarget;
+  // 同乗者が立て替えた分があれば差し引いて精算
+  const passengerAdvance = Math.max(0, trip.passengerAdvancePaid || 0);
+  const splitTargetTotal = Math.max(0, fuelCost + expensesDirectTotal + maintenanceTarget - passengerAdvance);
 
   return {
     fuelCost,
     highwayToll,
     parkingFee,
     carWashFee,
-    rentalFee,
     customExpensesTotal,
     expensesDirectTotal,
     maintenanceTotal: maintenanceFull,
@@ -163,210 +160,55 @@ export function roundAmount(
 }
 
 /**
- * 各メンバーの立替支払い合計を計算
+ * 運転手1人 ＋ 同乗者N名のスマート割り勘計算
  */
-export function getMemberTotalPaid(memberId: string, trip: TripData, members: Member[]): number {
-  let paid = 0;
-  const currentMember = members.find((m) => m.id === memberId);
-  if (currentMember) {
-    paid += currentMember.extraAdvancePaid || 0;
-  }
-
-  // ガソリン代を実費入力した場合はオーナー（または指定の支払い者）
-  if (trip.fuelMode === 'actual' && trip.actualFuelCost > 0) {
-    const owner = members.find((m) => m.isOwner) || members[0];
-    if (owner && owner.id === memberId) {
-      paid += trip.actualFuelCost;
-    }
-  }
-
-  if (trip.highwayPaidBy === memberId) paid += trip.highwayToll || 0;
-  if (trip.parkingPaidBy === memberId) paid += trip.parkingFee || 0;
-  if (trip.carWashPaidBy === memberId) paid += trip.carWashFee || 0;
-  if (trip.rentalPaidBy === memberId) paid += trip.rentalFee || 0;
-
-  for (const exp of trip.customExpenses || []) {
-    if (exp.paidByMemberId === memberId) {
-      paid += exp.amount || 0;
-    }
-  }
-
-  // 維持費は車両オーナーが所有車を提供したことに対する権利金として、
-  // オーナーの「立替・提供済みコスト」として扱われる
-  if (currentMember?.isOwner && trip.maintenance.enabled) {
-    const ratePerKm = getMaintenanceRatePerKm(trip.maintenance);
-    const maintenanceFull = Math.round(ratePerKm * (trip.distanceKm || 0));
-    paid += maintenanceFull;
-  }
-
-  return paid;
-}
-
-/**
- * 割り勘計算
- */
-export function calculateSplit(
+export function calculateSimpleSplit(
   trip: TripData,
-  members: Member[],
   settings: CalculationSettings
-): SplitResult {
+): SimpleSplitResult {
   const breakdown = calculateCostBreakdown(trip);
-  const memberCount = members.length;
-
-  if (memberCount === 0) {
-    return {
-      breakdown,
-      members: [],
-      transfers: [],
-      costPerKm: trip.distanceKm > 0 ? Math.round(breakdown.grandTotal / trip.distanceKm) : 0,
-    };
-  }
-
-  // 1. 各自の割引設定を確認し、重み付けまたは控除額を算出
-  // まず割引なしの場合の基本シェア
+  const passengerCount = Math.max(1, trip.passengerCount || 1);
+  const totalPeopleCount = 1 + passengerCount;
   const targetTotal = breakdown.splitTargetTotal;
 
-  // ドライバー無料や固定割引を考慮した計算
-  // ステップ1: 固定割引（無料含む）のメンバーを特定
-  let nonFreeMemberCount = 0;
-  const memberDiscountAmounts: Record<string, number> = {};
+  let rawPassengerShare = 0;
 
-  for (const member of members) {
-    if (member.discountType === 'free') {
-      // 全額無料
-      memberDiscountAmounts[member.id] = 0; // 負担額ゼロ
-    } else {
-      nonFreeMemberCount++;
-    }
+  if (trip.driverDiscount === 'free') {
+    // 運転手は無料：同乗者のみで全額均等割り
+    rawPassengerShare = targetTotal / passengerCount;
+  } else if (trip.driverDiscount === 'half') {
+    // 運転手半額：同乗者1.0、運転手0.5の比率
+    const weightTotal = passengerCount + 0.5;
+    rawPassengerShare = targetTotal / weightTotal;
+  } else {
+    // 全員均等割り
+    rawPassengerShare = targetTotal / totalPeopleCount;
   }
 
-  if (nonFreeMemberCount === 0) {
-    // 全員無料設定などの例外時は全員均等
-    nonFreeMemberCount = memberCount;
-  }
+  // 丸め処理
+  const passengerShare = roundAmount(
+    rawPassengerShare,
+    settings.roundingUnit,
+    settings.roundingStrategy
+  );
 
-  // 通常メンバーの暫定ベース額
-  const rawBaseShare = targetTotal / nonFreeMemberCount;
+  const totalCollected = passengerShare * passengerCount;
+  const driverShare = Math.max(0, targetTotal - totalCollected);
 
-  for (const member of members) {
-    if (member.discountType === 'free') {
-      memberDiscountAmounts[member.id] = rawBaseShare; // 割引された金額
-    } else if (member.discountType === 'percent') {
-      const discountRatio = Math.max(0, Math.min(100, member.discountValue || 0)) / 100;
-      memberDiscountAmounts[member.id] = rawBaseShare * discountRatio;
-    } else if (member.discountType === 'fixed') {
-      memberDiscountAmounts[member.id] = Math.min(rawBaseShare, member.discountValue || 0);
-    } else {
-      memberDiscountAmounts[member.id] = 0;
-    }
-  }
-
-  // 総割引額を計算し、割引を受けていない（または受けている人以外）に再配分
-  const totalDiscounts = Object.values(memberDiscountAmounts).reduce((a, b) => a + b, 0);
-
-  // 割引を受ける人を除いたメンバーで割引分を肩代わり（公平な按分）
-  const payingMembers = members.filter((m) => m.discountType !== 'free');
-  const discountBurdenPerPerson =
-    payingMembers.length > 0 ? totalDiscounts / payingMembers.length : 0;
-
-  const memberSettlements: MemberSettlement[] = [];
-  let sumRoundedShare = 0;
-
-  for (const member of members) {
-    let subtotal = 0;
-    if (member.discountType === 'free') {
-      subtotal = 0;
-    } else {
-      const discount = memberDiscountAmounts[member.id] || 0;
-      subtotal = Math.max(0, rawBaseShare - discount + discountBurdenPerPerson);
-    }
-
-    const roundedShare = member.discountType === 'free' ? 0 : roundAmount(subtotal, settings.roundingUnit, settings.roundingStrategy);
-    sumRoundedShare += roundedShare;
-
-    const totalPaid = getMemberTotalPaid(member.id, trip, members);
-
-    memberSettlements.push({
-      memberId: member.id,
-      name: member.name,
-      isOwner: member.isOwner,
-      isDriver: member.isDriver,
-      baseShare: Math.round(rawBaseShare),
-      discountAmount: Math.round(memberDiscountAmounts[member.id] || 0),
-      subtotal: Math.round(subtotal),
-      roundedShare,
-      totalPaid,
-      netBalance: roundedShare - totalPaid, // 正: 送金が必要, 負: 回収可能
-    });
-  }
-
-  // 端数処理による誤差
-  const roundingAdjustment = sumRoundedShare - targetTotal;
-  breakdown.roundingAdjustment = roundingAdjustment;
-
-  // 最小送金ステップを計算
-  const transfers = calculateSettlements(memberSettlements);
+  // 端数調整差額
+  breakdown.roundingAdjustment = totalCollected + driverShare - targetTotal;
 
   const costPerKm = trip.distanceKm > 0 ? Math.round((breakdown.grandTotal / trip.distanceKm) * 10) / 10 : 0;
 
   return {
     breakdown,
-    members: memberSettlements,
-    transfers,
+    passengerCount,
+    totalPeopleCount,
     costPerKm,
+    passengerShare,
+    rawPassengerShare: Math.round(rawPassengerShare),
+    driverShare: Math.round(driverShare),
+    driverFree: trip.driverDiscount === 'free',
+    totalCollected,
   };
-}
-
-/**
- * 最小取引数で精算するグリーディ（貪欲）送金アルゴリズム
- */
-export function calculateSettlements(settlements: MemberSettlement[]): PaymentTransfer[] {
-  // netBalance > 0: 支払う必要がある（債務）
-  // netBalance < 0: 受け取る必要がある（債権）
-  type DebtItem = { id: string; name: string; amount: number };
-
-  const debtors: DebtItem[] = [];
-  const creditors: DebtItem[] = [];
-
-  for (const s of settlements) {
-    if (s.netBalance > 0) {
-      debtors.push({ id: s.memberId, name: s.name, amount: s.netBalance });
-    } else if (s.netBalance < 0) {
-      creditors.push({ id: s.memberId, name: s.name, amount: -s.netBalance });
-    }
-  }
-
-  // 金額の大きい順にソート
-  debtors.sort((a, b) => b.amount - a.amount);
-  creditors.sort((a, b) => b.amount - a.amount);
-
-  const transfers: PaymentTransfer[] = [];
-
-  let dIdx = 0;
-  let cIdx = 0;
-
-  while (dIdx < debtors.length && cIdx < creditors.length) {
-    const debtor = debtors[dIdx];
-    const creditor = creditors[cIdx];
-
-    const transferAmount = Math.min(debtor.amount, creditor.amount);
-
-    if (transferAmount > 0) {
-      transfers.push({
-        fromMemberId: debtor.id,
-        fromName: debtor.name,
-        toMemberId: creditor.id,
-        toName: creditor.name,
-        amount: Math.round(transferAmount),
-      });
-
-      debtor.amount -= transferAmount;
-      creditor.amount -= transferAmount;
-    }
-
-    if (debtor.amount <= 0.01) dIdx++;
-    if (creditor.amount <= 0.01) cIdx++;
-  }
-
-  return transfers;
 }

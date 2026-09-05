@@ -1,30 +1,25 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
-import type { CalculationSettings, Member, TripData } from '../types/calculator';
+import type { CalculationSettings, TripData } from '../types/calculator';
 import { TripInputSection } from './TripInputSection';
 import { ExpensesSection } from './ExpensesSection';
 import { MaintenanceSection } from './MaintenanceSection';
-import { MembersSection } from './MembersSection';
 import { SettingsBar } from './SettingsBar';
 
 interface DetailedSettingsAccordionProps {
   trip: TripData;
-  members: Member[];
   settings: CalculationSettings;
   onTripChange: (updated: Partial<TripData>) => void;
   onMaintenanceChange: (updated: Partial<TripData['maintenance']>) => void;
-  onMembersChange: (members: Member[]) => void;
   onSettingsChange: (settings: CalculationSettings) => void;
   onOpenHelp: () => void;
 }
 
 export const DetailedSettingsAccordion: React.FC<DetailedSettingsAccordionProps> = ({
   trip,
-  members,
   settings,
   onTripChange,
   onMaintenanceChange,
-  onMembersChange,
   onSettingsChange,
   onOpenHelp,
 }) => {
@@ -46,7 +41,7 @@ export const DetailedSettingsAccordion: React.FC<DetailedSettingsAccordionProps>
             <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               詳細設定・個別調整
               <span className="text-[11px] font-normal text-slate-400">
-                {isOpen ? '（タップで閉じる）' : '（駐車場代・ガソリン価格・立替など）'}
+                {isOpen ? '（タップで閉じる）' : '（駐車場・ガソリン価格・端数など）'}
               </span>
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
@@ -62,12 +57,12 @@ export const DetailedSettingsAccordion: React.FC<DetailedSettingsAccordionProps>
 
       {/* 展開コンテンツ */}
       {isOpen && (
-        <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-5 animate-in fade-in duration-200">
-          {/* ガソリン代詳細設定 */}
+        <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-4 animate-in fade-in duration-200">
+          {/* ガソリン代詳細（燃費・単価手動設定 or 実費入力） */}
           <TripInputSection trip={trip} onChange={onTripChange} />
 
-          {/* 諸経費（駐車場・洗車等） */}
-          <ExpensesSection trip={trip} members={members} onChange={onTripChange} />
+          {/* 諸経費（駐車場代・洗車代・同乗者立替分） */}
+          <ExpensesSection trip={trip} onChange={onTripChange} />
 
           {/* 車両維持費の精密設定 */}
           <MaintenanceSection
@@ -76,9 +71,6 @@ export const DetailedSettingsAccordion: React.FC<DetailedSettingsAccordionProps>
             onChange={onMaintenanceChange}
             onOpenHelp={onOpenHelp}
           />
-
-          {/* メンバー名や立替金の管理 */}
-          <MembersSection members={members} onChange={onMembersChange} />
 
           {/* お釣りの端数丸め設定 */}
           <SettingsBar settings={settings} onChange={onSettingsChange} />

@@ -1,24 +1,16 @@
 ﻿import React from 'react';
 import { Navigation, Users, Car, Gift } from 'lucide-react';
-import type { CarTypePreset, Member, TripData } from '../types/calculator';
+import type { CarTypePreset, TripData } from '../types/calculator';
 import { CAR_TYPE_PRESETS } from '../utils/calculation';
 
 interface QuickInputCardProps {
   trip: TripData;
-  members: Member[];
   onTripChange: (updated: Partial<TripData>) => void;
-  onMembersCountChange: (count: number) => void;
-  onToggleDriverFree: (isFree: boolean) => void;
-  isDriverFree: boolean;
 }
 
 export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   trip,
-  members,
   onTripChange,
-  onMembersCountChange,
-  onToggleDriverFree,
-  isDriverFree,
 }) => {
   const currentCarType = trip.maintenance.carType;
 
@@ -36,11 +28,13 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   };
 
   const quickDistances = [50, 100, 150, 200, 300];
-  const quickCounts = [2, 3, 4, 5, 6];
+  const quickPassengerCounts = [1, 2, 3, 4, 5];
+
+  const isDriverFree = trip.driverDiscount === 'free';
 
   return (
     <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80 space-y-5">
-      {/* 1. 車種選択（3択クイックピル） */}
+      {/* 1. 車種選択 */}
       <div>
         <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1.5">
@@ -87,7 +81,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
         </div>
       </div>
 
-      {/* 2. 走行距離 & 高速代（2カラム） */}
+      {/* 2. 走行距離 & 高速代 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 走行距離 */}
         <div>
@@ -111,7 +105,6 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
               km
             </span>
           </div>
-          {/* クイック距離ボタン */}
           <div className="flex gap-1 mt-1.5">
             {quickDistances.map((km) => (
               <button
@@ -158,26 +151,26 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
         </div>
       </div>
 
-      {/* 3. 割り勘人数 */}
+      {/* 3. 同乗者の人数（名前入力不要！） */}
       <div>
         <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             <Users className="w-4 h-4 text-purple-600" />
-            4. 割り勘の人数（車主含む）
+            4. 同乗者の人数（あなた以外の乗客）
           </span>
-          <span className="text-xs font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
-            {members.length} 人
+          <span className="text-xs font-black text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full">
+            同乗者 {trip.passengerCount}名（全体 {1 + trip.passengerCount}名）
           </span>
         </label>
         <div className="grid grid-cols-5 gap-1.5">
-          {quickCounts.map((count) => {
-            const isSelected = members.length === count;
+          {quickPassengerCounts.map((count) => {
+            const isSelected = trip.passengerCount === count;
             return (
               <button
                 key={count}
                 type="button"
-                onClick={() => onMembersCountChange(count)}
-                className={`py-2 rounded-xl font-extrabold text-sm border transition-all ${
+                onClick={() => onTripChange({ passengerCount: count })}
+                className={`py-2.5 rounded-xl font-extrabold text-sm border transition-all ${
                   isSelected
                     ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                     : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -198,10 +191,10 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
           </div>
           <div>
             <div className="text-xs font-bold text-amber-950">
-              運転手（車主）は無料にする
+              運転手（あなた）は無料にする
             </div>
             <div className="text-[10px] text-amber-800/80">
-              長時間の運転お疲れ様！同乗者のみで割り勘します
+              同乗者の人数のみで全額割り勘します
             </div>
           </div>
         </div>
@@ -210,7 +203,9 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
           <input
             type="checkbox"
             checked={isDriverFree}
-            onChange={(e) => onToggleDriverFree(e.target.checked)}
+            onChange={(e) =>
+              onTripChange({ driverDiscount: e.target.checked ? 'free' : 'none' })
+            }
             className="sr-only peer"
           />
           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
