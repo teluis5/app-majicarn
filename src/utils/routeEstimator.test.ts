@@ -1,7 +1,8 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   calculateHubenyDistance,
   estimateHighwayToll,
+  getHighwayTollBreakdown,
   PRESET_LOCATIONS,
 } from './routeEstimator';
 
@@ -25,5 +26,18 @@ describe('Route Estimator', () => {
     // 軽自動車割引
     const keiToll = estimateHighwayToll(100, 'kei');
     expect(keiToll).toBeLessThan(toll);
+  });
+
+  it('generates highway toll breakdown details accurately', () => {
+    const breakdown = getHighwayTollBreakdown(200, true, 'sedan_suv');
+    expect(breakdown.isRoundTrip).toBe(true);
+    expect(breakdown.estimatedToll).toBeGreaterThan(0);
+    expect(breakdown.oneWayToll).toBeGreaterThan(0);
+    expect(breakdown.isKeiDiscountApplied).toBe(false);
+    expect(breakdown.discountEstimateLateNight).toBeGreaterThan(0);
+
+    const keiBreakdown = getHighwayTollBreakdown(200, true, 'kei');
+    expect(keiBreakdown.isKeiDiscountApplied).toBe(true);
+    expect(keiBreakdown.estimatedToll).toBeLessThan(breakdown.estimatedToll);
   });
 });

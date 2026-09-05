@@ -33,18 +33,11 @@ export function generateShareText(
   // 2. 交通費
   lines.push(`・2. 交通費 (高速・ETC代): ¥${breakdown.transitTotal.toLocaleString()}`);
 
-  // 3. 駐車場等
+  // 3. 駐車場等 (駐車・洗車代)
   if (breakdown.parkingEtcTotal > 0) {
-    const details = [];
-    if (breakdown.parkingFee > 0) details.push(`駐車 ¥${breakdown.parkingFee.toLocaleString()}`);
-    if (breakdown.carWashFee > 0) details.push(`洗車 ¥${breakdown.carWashFee.toLocaleString()}`);
-    lines.push(
-      `・3. 駐車場等: ¥${breakdown.parkingEtcTotal.toLocaleString()}${
-        details.length > 0 ? ` (${details.join(', ')})` : ''
-      }`
-    );
+    lines.push(`・3. 駐車・洗車代: ¥${breakdown.parkingEtcTotal.toLocaleString()}`);
   } else {
-    lines.push('・3. 駐車場等: ¥0');
+    lines.push('・3. 駐車・洗車代: ¥0');
   }
 
   // 4. 諸経費 (車両維持費)

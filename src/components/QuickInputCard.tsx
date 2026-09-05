@@ -21,7 +21,11 @@ import {
   getMaintenanceRatePerKm,
   calculateMaintenanceBreakdownDetails,
 } from '../utils/calculation';
-import { estimateRoute, type RouteEstimateResult } from '../utils/routeEstimator';
+import {
+  estimateRoute,
+  getHighwayTollBreakdown,
+  type RouteEstimateResult,
+} from '../utils/routeEstimator';
 import { RouteMapView } from './RouteMapView';
 
 interface QuickInputCardProps {
@@ -50,6 +54,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   const [routeResult, setRouteResult] = useState<RouteEstimateResult | null>(null);
   const [isRouteSectionCollapsed, setIsRouteSectionCollapsed] = useState(false);
   const [isMaintenanceDetailOpen, setIsMaintenanceDetailOpen] = useState(false);
+  const [isHighwayDetailOpen, setIsHighwayDetailOpen] = useState(false);
 
   const currentCarType = trip.maintenance.carType;
   const ratePerKm = getMaintenanceRatePerKm(trip.maintenance);
@@ -606,7 +611,7 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             </div>
           </section>
 
-          {/* 2. 交通費 */}
+          {/* 2. 交通費（高速代） */}
           <section className="pt-4 border-t border-slate-200/90 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -648,9 +653,89 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* 高速代の内訳詳細トグル */}
+            {(() => {
+              const tollInfo = getHighwayTollBreakdown(
+                trip.distanceKm,
+                routeResult?.isRoundTrip ?? isRoundTrip,
+                currentCarType,
+                trip.highwayToll
+              );
+              return (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsHighwayDetailOpen(!isHighwayDetailOpen)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 transition-colors"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    <span>高速代の計算根拠・内訳を見る</span>
+                    {isHighwayDetailOpen ? (
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+
+                  {isHighwayDetailOpen && (
+                    <div className="mt-2.5 p-3 rounded-xl bg-blue-50/70 border border-blue-100 text-xs text-slate-700 space-y-2.5 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between border-b border-blue-200/60 pb-2">
+                        <span className="font-bold text-blue-900">
+                          {tollInfo.isRoundTrip ? '往復' : '片道'} 推定料金
+                        </span>
+                        <span className="font-black text-blue-700 text-sm">
+                          ¥{tollInfo.estimatedToll.toLocaleString()}
+                          {tollInfo.isRoundTrip && (
+                            <span className="text-[10px] text-blue-600 font-normal ml-1">
+                              (片道約 ¥{tollInfo.oneWayToll.toLocaleString()} × 2)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="text-slate-500 shrink-0">車種区分</span>
+                          <span className="font-semibold text-slate-800 text-right">
+                            {tollInfo.carTypeName}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="text-slate-500 shrink-0">計算基準</span>
+                          <span className="font-medium text-slate-700 text-right text-[11px]">
+                            {tollInfo.formulaDescription}
+                          </span>
+                        </div>
+                        {tollInfo.estimatedToll > 0 && (
+                          <div className="pt-1 border-t border-blue-200/40 text-[11px] space-y-1 text-slate-600">
+                            <div className="flex justify-between">
+                              <span>🌙 深夜割引(30%OFF)目安:</span>
+                              <span className="font-bold text-slate-800">
+                                約 ¥{tollInfo.discountEstimateLateNight.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>🎌 休日割引(30%OFF)目安:</span>
+                              <span className="font-bold text-slate-800">
+                                約 ¥{tollInfo.discountEstimateHoliday.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-[10px] text-blue-800/80 bg-blue-100/50 p-2 rounded-lg leading-relaxed">
+                        💡 実際のETC明細や領収書がある場合は、上の入力欄で直接補正していただけます。
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </section>
 
-          {/* 3. 駐車場等 */}
+          {/* 3. 駐車場等（駐車代・洗車代を1つの入力欄に統合） */}
           <section className="pt-4 border-t border-slate-200/90 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -670,53 +755,30 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  駐車場代
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={trip.parkingFee === 0 ? '' : trip.parkingFee}
-                    onChange={(e) =>
-                      onTripChange({
-                        parkingFee: Math.max(0, parseInt(e.target.value, 10) || 0),
-                      })
-                    }
-                    placeholder="0"
-                    className="w-full px-3 py-2 text-base font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-500 transition-all pr-7"
-                  />
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                    円
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  洗車代
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={trip.carWashFee === 0 ? '' : trip.carWashFee}
-                    onChange={(e) =>
-                      onTripChange({
-                        carWashFee: Math.max(0, parseInt(e.target.value, 10) || 0),
-                      })
-                    }
-                    placeholder="0"
-                    className="w-full px-3 py-2 text-base font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-500 transition-all pr-7"
-                  />
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                    円
-                  </span>
-                </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <span>駐車・洗車代</span>
+                <span className="text-[10px] text-slate-400 font-normal">コインパーキング・洗車機など</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={parkingEtcCost === 0 ? '' : parkingEtcCost}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    onTripChange({
+                      parkingFee: val,
+                      carWashFee: 0,
+                    });
+                  }}
+                  placeholder="0"
+                  className="w-full px-3 py-2 text-base font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-500 transition-all pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  円
+                </span>
               </div>
             </div>
           </section>

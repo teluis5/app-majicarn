@@ -121,6 +121,58 @@ export interface RouteEstimateResult {
   googleMapsUrl: string;
 }
 
+export interface HighwayTollBreakdown {
+  estimatedToll: number; // 推定高速代合計
+  oneWayToll: number; // 片道高速代
+  isRoundTrip: boolean; // 往復かどうか
+  highwayKm: number; // 高速推定走行距離 (片道)
+  carTypeName: string; // 適用車種名 (普通車・軽自動車等)
+  isKeiDiscountApplied: boolean; // 軽自動車割引適用有無
+  discountEstimateLateNight: number; // 深夜割引目安 (30%OFF)
+  discountEstimateHoliday: number; // 休日割引目安 (30%OFF)
+  formulaDescription: string; // 計算式の解説
+}
+
+/**
+ * 高速代の内訳詳細情報を取得
+ */
+export function getHighwayTollBreakdown(
+  totalRoadDistanceKm: number,
+  isRoundTrip: boolean,
+  carType: CarTypePreset = 'sedan_suv',
+  currentToll?: number
+): HighwayTollBreakdown {
+  const oneWayDistanceKm = isRoundTrip ? Math.round((totalRoadDistanceKm / 2) * 10) / 10 : totalRoadDistanceKm;
+  const oneWayToll = estimateHighwayToll(oneWayDistanceKm, carType);
+  const estimatedTotal = oneWayToll * (isRoundTrip ? 2 : 1);
+  const activeToll = currentToll !== undefined && currentToll > 0 ? currentToll : estimatedTotal;
+
+  const highwayKm = Math.max(0, Math.round(oneWayDistanceKm - 12));
+  const isKei = carType === 'kei';
+  const carTypeName = isKei ? '軽自動車（約20%割引区分）' : '普通車・SUV・ミニバン（標準区分）';
+
+  // ETC深夜・休日割引（約30%割引）
+  const discountEstimateLateNight = Math.round((activeToll * 0.7) / 100) * 100;
+  const discountEstimateHoliday = Math.round((activeToll * 0.7) / 100) * 100;
+
+  let formulaDescription = 'NEXCO標準: (高速区間km × 24.6円 + 150円) × 1.10';
+  if (isKei) {
+    formulaDescription += ' × 軽自動車割引0.8';
+  }
+
+  return {
+    estimatedToll: activeToll,
+    oneWayToll,
+    isRoundTrip,
+    highwayKm,
+    carTypeName,
+    isKeiDiscountApplied: isKei,
+    discountEstimateLateNight,
+    discountEstimateHoliday,
+    formulaDescription,
+  };
+}
+
 /**
  * 日本の高速道路（ETC）標準料金を距離から推定
  * NEXCO標準: (高速走行距離km × 24.6円 + 150円) × 1.10
