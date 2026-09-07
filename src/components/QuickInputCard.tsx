@@ -5,7 +5,6 @@ import {
   Sparkles,
   Loader2,
   Wrench,
-  ShieldCheck,
   AlertCircle,
   Fuel,
   Car,
@@ -34,7 +33,6 @@ interface QuickInputCardProps {
   trip: TripData;
   splitResult?: SimpleSplitResult;
   onTripChange: (updated: Partial<TripData>) => void;
-  onOpenHelp: () => void;
   isDestinationSet: boolean;
   onDestinationConfirmed: () => void;
   onResetDestination: () => void;
@@ -44,7 +42,6 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
   trip,
   splitResult,
   onTripChange,
-  onOpenHelp,
   isDestinationSet,
   onDestinationConfirmed,
   onResetDestination,
@@ -214,14 +211,6 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
             </span>
             <span>車種（維持費レート）</span>
           </span>
-          <button
-            type="button"
-            onClick={onOpenHelp}
-            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5"
-          >
-            <ShieldCheck className="w-3 h-3" />
-            維持費とは？
-          </button>
         </div>
 
         <div className="bg-slate-100 p-1 rounded-xl grid grid-cols-3 gap-1">
@@ -253,41 +242,44 @@ export const QuickInputCard: React.FC<QuickInputCardProps> = ({
           })}
         </div>
 
-        {/* 初回ステップ2用の内訳確認トグル */}
+        {/* 初回ステップ2用の内訳確認トグル（統合版） */}
         {!isDestinationSet && (
-          <div className="pt-0.5">
+          <div className="pt-0.5 flex justify-end">
             <button
               type="button"
               onClick={() => setIsMaintenanceDetailOpen((prev) => !prev)}
               className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
             >
               <Info className="w-3 h-3" />
-              <span>
-                {CAR_TYPE_PRESETS[currentCarType]?.name || '選択中'}の維持費内訳（¥{ratePerKm}/km）を確認する
-              </span>
+              <span>維持費とは？（内訳を確認）</span>
               {isMaintenanceDetailOpen ? (
                 <ChevronUp className="w-3 h-3" />
               ) : (
                 <ChevronDown className="w-3 h-3" />
               )}
             </button>
-
-            {isMaintenanceDetailOpen && (
-              <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs animate-in fade-in duration-200">
-                <div className="text-[10px] font-bold text-slate-500 pb-1 border-b border-slate-200/60 flex items-center justify-between">
-                  <span>{CAR_TYPE_PRESETS[currentCarType]?.name} の1kmあたり内訳</span>
-                  <span className="text-indigo-700 font-extrabold">合計 ¥{ratePerKm}/km</span>
+          </div>
+        )}
+        
+        {/* 内訳詳細の表示領域（右寄せにはせず全体幅で表示） */}
+        {!isDestinationSet && isMaintenanceDetailOpen && (
+          <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs animate-in fade-in duration-200">
+            <div className="text-[10px] font-bold text-slate-500 pb-1 border-b border-slate-200/60 flex items-center justify-between">
+              <span>{CAR_TYPE_PRESETS[currentCarType]?.name} の1kmあたり内訳</span>
+              <span className="text-indigo-700 font-extrabold">合計 ¥{ratePerKm}/km</span>
+            </div>
+            <div className="space-y-1">
+              {maintenanceDetails.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-700">{item.category} ({item.description})</span>
+                  <span className="font-bold text-indigo-700 shrink-0 ml-2">約¥{item.ratePerKm}/km</span>
                 </div>
-                <div className="space-y-1">
-                  {maintenanceDetails.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-700">{item.category} ({item.description})</span>
-                      <span className="font-bold text-indigo-700 shrink-0 ml-2">約¥{item.ratePerKm}/km</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
+            <div className="pt-2 border-t border-slate-200/60 text-[10px] text-slate-500 leading-relaxed">
+              <span className="font-bold text-slate-700">💡 なぜ割り勘にするの？</span><br/>
+              ガソリン代だけでなく、走行に応じた車の消耗分（タイヤや車検費用など）を同乗者で負担し合うことで、車を出してくれた人が損をしない公平な割り勘になります。
+            </div>
           </div>
         )}
       </div>

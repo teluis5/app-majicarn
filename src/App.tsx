@@ -122,7 +122,6 @@ export const App: React.FC = () => {
             trip={trip}
             splitResult={splitResult}
             onTripChange={handleTripChange}
-            onOpenHelp={() => setIsInfoOpen(true)}
             isDestinationSet={isDestinationSet}
             onDestinationConfirmed={() => setIsDestinationSet(true)}
             onResetDestination={() => setIsDestinationSet(false)}

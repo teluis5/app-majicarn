@@ -1,0 +1,8 @@
+{
+  "name": "MajiCarn (マジカン)",
+  "description": "ガソリン代や高速代だけでなく、車の車検・保険・タイヤ等のランニングコスト（維持費）も公平に計算できる車代スマート割り勘Webアプリ",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
